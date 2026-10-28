@@ -52,12 +52,10 @@ services:
     # py-spy necesita ptrace para inspeccionar el proceso
     cap_add:
       - SYS_PTRACE
-    volumes:
-      # Volumen chico en memoria para comprobantes. El escenario disk-full lo llena
-      - type: tmpfs
-        target: /data/uploads
-        tmpfs:
-          size: 50331648
+    # Volumen chico en memoria para comprobantes. El escenario disk-full lo llena.
+    # uid/gid 10001 es el usuario app de la imagen, sin eso el tmpfs queda de root
+    tmpfs:
+      - /data/uploads:size=50331648,uid=10001,gid=10001,mode=0750
     healthcheck:
       test: ["CMD", "curl", "-fsS", "--max-time", "2", "http://127.0.0.1:8000/healthz"]
       interval: 10s

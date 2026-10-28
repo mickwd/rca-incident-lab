@@ -83,8 +83,10 @@ def test_api_fault_settings(compose):
     api = compose["services"]["api"]
     assert api["mem_limit"] == "256m", "memory-leak depende del límite de memoria"
     assert "SYS_PTRACE" in api["cap_add"], "py-spy necesita ptrace"
-    tmpfs = [v for v in api["volumes"] if isinstance(v, dict) and v["type"] == "tmpfs"]
-    assert tmpfs and tmpfs[0]["target"] == "/data/uploads"
+    tmpfs = [m for m in api["tmpfs"] if m.startswith("/data/uploads:")]
+    assert tmpfs, "falta el tmpfs de comprobantes"
+    # la API corre como uid 10001, si el tmpfs queda de root no puede escribir
+    assert "uid=10001" in tmpfs[0] and "gid=10001" in tmpfs[0]
     assert api["environment"]["UPLOADS_DIR"] == "/data/uploads"
     assert api["environment"]["APP_NAME"] == "orders-api"
     assert compose["services"]["worker"]["environment"]["APP_NAME"] == "orders-worker"
