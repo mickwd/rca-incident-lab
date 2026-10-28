@@ -1,0 +1,7 @@
+# Override que usa `labctl break dns-broken`.
+# Simula un cambio de configuración que apunta la API a un hostname que no
+# existe en la red de Docker (alguien "renombró" la base en el config).
+services:
+  api:
+    environment:
+      DB_HOST: orders-db.internal

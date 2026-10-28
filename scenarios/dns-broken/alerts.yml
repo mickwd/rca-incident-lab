@@ -1,0 +1,35 @@
+groups:
+  - name: scenario-dns-broken
+    rules:
+      - alert: ApiNotReady
+        expr: probe_success{job="blackbox-readyz"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          scenario: dns-broken
+        annotations:
+          summary: "/readyz de la API falla visto desde afuera"
+          description: "El proceso puede estar vivo (/healthz 200) pero alguna dependencia no responde. Revisar el body de /readyz y los logs de la API."
+          runbook_url: "scenarios/dns-broken/README.md"
+
+      - alert: ApiDependencyDown
+        expr: app_dependency_up{job="orders-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          scenario: dns-broken
+        annotations:
+          summary: "La API reporta {{ $labels.dependency }} como no disponible"
+          description: "Último chequeo de /readyz falló para {{ $labels.dependency }}. Verificar resolución DNS, red y credenciales desde el contenedor."
+          runbook_url: "scenarios/dns-broken/README.md"
+
+      - alert: ApiDatabaseOperationalErrors
+        expr: sum(rate(app_exceptions_total{job="orders-api",type="OperationalError"}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          scenario: dns-broken
+        annotations:
+          summary: "Errores OperationalError sostenidos en la API"
+          description: "{{ $value | printf \"%.2f\" }} excepciones/s. Suele ser DNS, red o la base caída: leer el mensaje exacto en los logs."
+          runbook_url: "scenarios/dns-broken/README.md"

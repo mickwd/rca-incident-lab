@@ -1,0 +1,35 @@
+groups:
+  - name: scenario-expired-cert
+    rules:
+      - alert: TlsCertificateExpiringSoon
+        expr: (probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) / 86400 < 14
+        for: 10m
+        labels:
+          severity: warning
+          scenario: expired-cert
+        annotations:
+          summary: "El certificado de {{ $labels.instance }} vence en menos de 14 días"
+          description: "Quedan {{ $value | printf \"%.1f\" }} días. Renovar y recargar nginx antes del vencimiento."
+          runbook_url: "scenarios/expired-cert/README.md"
+
+      - alert: TlsCertificateExpired
+        expr: probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time() <= 0
+        for: 1m
+        labels:
+          severity: critical
+          scenario: expired-cert
+        annotations:
+          summary: "El certificado servido por {{ $labels.instance }} está vencido"
+          description: "Los clientes que validan la cadena fallan con 'certificate has expired'. Revisar con openssl s_client."
+          runbook_url: "scenarios/expired-cert/README.md"
+
+      - alert: HttpsProbeFailingWithValidation
+        expr: probe_success{job="blackbox-https"} == 0 and on(instance) probe_success{job="blackbox-tls"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          scenario: expired-cert
+        annotations:
+          summary: "HTTPS falla con validación de cadena pero nginx responde"
+          description: "El servidor está arriba pero el certificado no valida (vencido, CA o SAN incorrectos). Los clientes reales están fallando."
+          runbook_url: "scenarios/expired-cert/README.md"

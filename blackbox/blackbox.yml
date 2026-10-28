@@ -1,0 +1,21 @@
+modules:
+  # Valida la cadena contra la CA del laboratorio: falla si el certificado vence
+  https_verified:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      fail_if_not_ssl: true
+      tls_config:
+        ca_file: /certs/ca.crt
+  # No valida la cadena: sirve para leer la fecha de vencimiento y para chequear
+  # readyz sin mezclar problemas de TLS con problemas de la aplicación
+  https_insecure:
+    prober: http
+    timeout: 8s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      tls_config:
+        insecure_skip_verify: true

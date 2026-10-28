@@ -1,0 +1,39 @@
+groups:
+  - name: scenario-disk-full
+    rules:
+      - alert: UploadsDiskAlmostFull
+        expr: |
+          min(uploads_disk_free_bytes{job="orders-api"} / uploads_disk_total_bytes{job="orders-api"}) < 0.10
+        for: 2m
+        labels:
+          severity: warning
+          scenario: disk-full
+        annotations:
+          summary: "El volumen de uploads de la API tiene menos de 10% libre"
+          description: "Libre: {{ $value | humanizePercentage }}. Revisar con df -h y du dentro del contenedor api."
+          runbook_url: "scenarios/disk-full/README.md"
+
+      - alert: UploadsDiskFillingUp
+        expr: predict_linear(uploads_disk_free_bytes{job="orders-api"}[1h], 4 * 3600) < 0
+        for: 10m
+        labels:
+          severity: warning
+          scenario: disk-full
+        annotations:
+          summary: "El volumen de uploads se llena en menos de 4 horas a este ritmo"
+          description: "Crecimiento sostenido del uso. Suele indicar falta de retención de comprobantes."
+          runbook_url: "scenarios/disk-full/README.md"
+
+      - alert: OrderWritesFailingDiskErrors
+        expr: |
+          sum(rate(app_exceptions_total{job="orders-api",type="OSError"}[5m])) > 0
+          and
+          sum(rate(http_requests_total{job="orders-api",method="POST",route="/orders",status=~"5.."}[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          scenario: disk-full
+        annotations:
+          summary: "POST /orders falla con OSError (posible disco lleno)"
+          description: "Las altas de órdenes hacen rollback al no poder escribir el comprobante. Las lecturas y /readyz siguen OK."
+          runbook_url: "scenarios/disk-full/README.md"

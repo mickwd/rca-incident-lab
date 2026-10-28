@@ -1,0 +1,38 @@
+groups:
+  - name: scenario-cpu-spike
+    rules:
+      - alert: ApiContainerCpuSaturated
+        expr: sum(rate(container_cpu_usage_seconds_total{name="rca-lab-api-1"}[1m])) > 0.9
+        for: 2m
+        labels:
+          severity: warning
+          scenario: cpu-spike
+        annotations:
+          summary: "El contenedor de la API usa más de 0,9 cores de forma sostenida"
+          description: "CPU actual {{ $value | humanize }} cores. La API corre en un solo proceso: revisar con py-spy dump qué está ejecutando."
+          runbook_url: "scenarios/cpu-spike/README.md"
+
+      - alert: ApiScrapeFlapping
+        expr: count_over_time((up{job="orders-api"} == 0)[5m:5s]) >= 3
+        for: 1m
+        labels:
+          severity: critical
+          scenario: cpu-spike
+        annotations:
+          summary: "Prometheus no puede scrapear la API de forma intermitente"
+          description: "{{ $value }} scrapes fallidos en 5m. El proceso puede estar congelado (GIL tomado) aunque siga vivo."
+          runbook_url: "scenarios/cpu-spike/README.md"
+
+      - alert: ValidateEndpointSlow
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="orders-api",route="/orders/validate"}[5m]))
+          ) > 1
+        for: 2m
+        labels:
+          severity: warning
+          scenario: cpu-spike
+        annotations:
+          summary: "La validación de referencias tarda más de 1s en p99"
+          description: "p99 actual {{ $value | humanizeDuration }}. Una validación no debería tardar más que microsegundos: sospechar de la regex."
+          runbook_url: "scenarios/cpu-spike/README.md"

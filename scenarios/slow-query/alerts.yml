@@ -1,0 +1,41 @@
+groups:
+  - name: scenario-slow-query
+    rules:
+      - alert: CustomerOrdersLatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="orders-api",route="/customers/{customer_id}/orders"}[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          scenario: slow-query
+        annotations:
+          summary: "p99 de /customers/{customer_id}/orders por encima de 500ms"
+          description: "p99 actual {{ $value | humanizeDuration }}. Revisar pg_stat_statements y el plan de la consulta por customer_id."
+          runbook_url: "scenarios/slow-query/README.md"
+
+      - alert: OrdersTableSeqScanStorm
+        expr: rate(pg_stat_user_tables_seq_tup_read{relname="orders"}[5m]) > 1e6
+        for: 5m
+        labels:
+          severity: warning
+          scenario: slow-query
+        annotations:
+          summary: "Lecturas secuenciales masivas sobre la tabla orders"
+          description: "{{ $value | humanize }} filas/s leídas por seq scan. Posible índice faltante o plan degradado."
+          runbook_url: "scenarios/slow-query/README.md"
+
+      - alert: OrdersQueryPathDegradedCritical
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="orders-api",route="/customers/{customer_id}/orders"}[5m]))
+          ) > 2
+        for: 5m
+        labels:
+          severity: critical
+          scenario: slow-query
+        annotations:
+          summary: "El historial de órdenes tarda más de 2s en p99"
+          description: "p99 actual {{ $value | humanizeDuration }}. Riesgo de agotar el pool de conexiones de la API."
+          runbook_url: "scenarios/slow-query/README.md"

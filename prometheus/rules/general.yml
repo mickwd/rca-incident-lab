@@ -1,0 +1,35 @@
+groups:
+  - name: general
+    rules:
+      - alert: TargetDown
+        expr: up{job!="loadgen"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "El target {{ $labels.job }} ({{ $labels.instance }}) no responde al scrape"
+          description: "Puede ser el proceso caído, colgado o sin red. Revisar docker compose ps y logs."
+          runbook_url: "docs/metodologia.md"
+
+      - alert: ApiHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="orders-api",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total{job="orders-api"}[5m])), 1e-9) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Más del 5% de los requests de la API terminan en 5xx"
+          description: "Error rate actual {{ $value | humanizePercentage }}. Arrancar por el método RED y app_exceptions_total."
+          runbook_url: "docs/metodologia.md"
+
+      - alert: ApiHighLatencyP99
+        expr: |
+          histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job="orders-api"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "El p99 de la API supera 1s"
+          description: "p99 actual {{ $value | humanizeDuration }}. Separar por route para ver si es global o de un endpoint."
+          runbook_url: "docs/metodologia.md"

@@ -1,0 +1,36 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Entorno
+.env
+
+# Estado local de labctl
+.labctl/
+
+# Certificados generados (se recrean con certgen)
+certs/*
+!certs/.gitkeep
+
+# Datos de volúmenes si se montan en el repo
+data/
+volumes/
+pgdata/
+promdata/
+grafanadata/
+
+# Editores / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

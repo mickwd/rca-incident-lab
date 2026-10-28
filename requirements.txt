@@ -1,0 +1,4 @@
+# Dependencias para usar labctl y el generador de carga desde el host
+-e .
+httpx>=0.28
+prometheus-client>=0.21

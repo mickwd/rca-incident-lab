@@ -1,0 +1,40 @@
+groups:
+  - name: scenario-db-lock
+    rules:
+      - alert: PostgresLongIdleInTransaction
+        expr: max(pg_stat_activity_max_tx_duration{datname="orders",state="idle in transaction"}) > 60
+        for: 1m
+        labels:
+          severity: critical
+          scenario: db-lock
+        annotations:
+          summary: "Transacción idle in transaction abierta hace {{ $value | humanizeDuration }}"
+          description: "Una sesión tiene una transacción abierta sin ejecutar nada. Si tiene locks bloquea al resto. Buscar el pid con pg_stat_activity y pg_blocking_pids()."
+          runbook_url: "scenarios/db-lock/README.md"
+
+      - alert: ApiCreateOrderLatencyHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(http_request_duration_seconds_bucket{job="orders-api",method="POST",route="/orders"}[5m]))
+          ) > 5
+        for: 2m
+        labels:
+          severity: warning
+          scenario: db-lock
+        annotations:
+          summary: "El p99 de POST /orders supera 5s"
+          description: "p99 actual {{ $value | humanizeDuration }}. Si el CPU está bajo, sospechar esperas por locks en Postgres."
+          runbook_url: "scenarios/db-lock/README.md"
+
+      - alert: WorkerPendingProcessingStalled
+        expr: |
+          (time() - worker_last_success_timestamp_seconds{job="orders-worker",task="process_pending"}) > 120
+            and on() up{job="orders-worker"} == 1
+        for: 2m
+        labels:
+          severity: warning
+          scenario: db-lock
+        annotations:
+          summary: "El worker no procesa órdenes pendientes hace {{ $value | humanizeDuration }}"
+          description: "El loop del worker está trabado (por ejemplo dentro de la conciliación con la transacción abierta). Revisar docker compose logs worker y pg_stat_activity (application_name=orders-worker)."
+          runbook_url: "scenarios/db-lock/README.md"

@@ -1,0 +1,37 @@
+groups:
+  - name: scenario-memory-leak
+    rules:
+      - alert: ApiMemoryNearLimit
+        expr: |
+          container_memory_working_set_bytes{name="rca-lab-api-1"}
+            / container_spec_memory_limit_bytes{name="rca-lab-api-1"} > 0.85
+        for: 2m
+        labels:
+          severity: warning
+          scenario: memory-leak
+        annotations:
+          summary: "La API usa más del 85% de su límite de memoria"
+          description: "Working set al {{ $value | humanizePercentage }} del mem_limit. Si sigue creciendo el kernel va a matar el proceso (OOM kill)."
+          runbook_url: "scenarios/memory-leak/README.md"
+
+      - alert: ApiMemoryGrowing
+        expr: deriv(process_resident_memory_bytes{job="orders-api"}[5m]) > 200000
+        for: 10m
+        labels:
+          severity: warning
+          scenario: memory-leak
+        annotations:
+          summary: "El RSS de la API crece de forma sostenida"
+          description: "Pendiente de {{ $value | humanize }}B/s durante 10 minutos. Correlacionar con el RPS por ruta para encontrar el endpoint que retiene memoria."
+          runbook_url: "scenarios/memory-leak/README.md"
+
+      - alert: ApiRestartLoop
+        expr: changes(process_start_time_seconds{job="orders-api"}[15m]) >= 2
+        for: 0m
+        labels:
+          severity: critical
+          scenario: memory-leak
+        annotations:
+          summary: "La API se reinició {{ $value }} veces en 15 minutos"
+          description: "Crash loop. Revisar docker inspect rca-lab-api-1 (OOMKilled, ExitCode, RestartCount) y docker events."
+          runbook_url: "scenarios/memory-leak/README.md"

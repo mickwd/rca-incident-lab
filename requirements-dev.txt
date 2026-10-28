@@ -1,0 +1,11 @@
+# Entorno local de desarrollo y CI (tests + lint).
+# Las imágenes Docker usan versiones fijas en services/*/requirements.txt
+-e .
+fastapi>=0.115
+sqlalchemy>=2.0.36
+redis>=5.2
+prometheus-client>=0.21
+httpx>=0.28
+pyyaml>=6.0
+pytest>=8.3
+ruff==0.8.4

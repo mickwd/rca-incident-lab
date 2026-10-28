@@ -1,0 +1,36 @@
+groups:
+  - name: scenario-connection-pool-exhaustion
+    rules:
+      - alert: DbPoolSaturated
+        expr: |
+          max(db_pool_checked_out{job="orders-api"} / db_pool_capacity{job="orders-api"}) >= 0.9
+        for: 2m
+        labels:
+          severity: warning
+          scenario: connection-pool-exhaustion
+        annotations:
+          summary: "El pool de conexiones de la API está al {{ $value | humanizePercentage }}"
+          description: "Si no baja con el tráfico es una fuga de sesiones. Revisar pg_stat_activity filtrando application_name='orders-api'."
+          runbook_url: "scenarios/connection-pool-exhaustion/README.md"
+
+      - alert: DbPoolTimeouts
+        expr: sum(rate(app_exceptions_total{job="orders-api",type="TimeoutError"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          scenario: connection-pool-exhaustion
+        annotations:
+          summary: "La API no consigue conexiones del pool (QueuePool limit reached)"
+          description: "{{ $value | humanize }} timeouts/s esperando una conexión. Los requests que tocan la base responden 503 después de pool_timeout."
+          runbook_url: "scenarios/connection-pool-exhaustion/README.md"
+
+      - alert: ApiIdleInTransactionConnections
+        expr: max(pg_stat_activity_max_tx_duration{datname="orders",state="idle in transaction"}) > 120
+        for: 2m
+        labels:
+          severity: warning
+          scenario: connection-pool-exhaustion
+        annotations:
+          summary: "Hay transacciones idle in transaction de más de 2 minutos"
+          description: "La transacción más vieja lleva {{ $value | humanizeDuration }}. Ver application_name en pg_stat_activity para separar fuga de la API (orders-api) de lock del worker (orders-worker)."
+          runbook_url: "scenarios/connection-pool-exhaustion/README.md"
