@@ -155,7 +155,11 @@ def test_blackbox_modules_exist(prometheus):
 
 def test_rule_files_globs_match_files(prometheus):
     globs = prometheus["rule_files"]
-    assert "scenarios/*/alerts.yml" in globs
+    # cada escenario se lista a mano porque Prometheus no acepta comodines en carpetas
+    for alerts in (ROOT / "scenarios").glob("*/alerts.yml"):
+        assert alerts.relative_to(ROOT).as_posix() in globs
+    for pattern in globs:
+        assert "*" not in pattern.rsplit("/", 1)[0], f"{pattern} tiene comodin en la carpeta"
     for pattern in globs:
         base = ROOT / "prometheus" if pattern.startswith("rules/") else ROOT
         assert list(base.glob(pattern)), f"rule_files {pattern} no matchea nada"
